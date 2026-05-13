@@ -1,0 +1,12 @@
+sim/output/*
+!sim/output/.gitkeep
+
+*.vcd
+*.out
+*.o
+*.log
+*.tmp
+*.fst
+
+sim_cpu
+sim_tb_rv32i

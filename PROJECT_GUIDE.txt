@@ -1,0 +1,458 @@
+RV32I SINGLE-CYCLE CPU PROJECT GUIDE
+=====================================
+
+1. What this project is
+-----------------------
+
+This project is an educational RV32I CPU written in Verilog/SystemVerilog.
+It uses a single-cycle-style datapath, not a pipelined datapath.
+
+The CPU executes one instruction flow through:
+
+1. instruction fetch
+2. decode
+3. register read
+4. execute / ALU work
+5. memory access when needed
+6. register writeback when needed
+
+The design is intended for learning and simulation. It is not a full
+production CPU core and it is not a full ISA-compliance implementation.
+
+
+2. Current project layout
+-------------------------
+
+README.md
+  GitHub-facing overview, requirements, run commands, and relationship to the
+  AI-side repository.
+
+REPOSITORY_CONNECTION.md
+  How this CPU repository relates to the companion AI repository and what is
+  still needed for full SoC integration.
+
+rtl/
+  rv32i_single_cycle_cpu.v
+  rv32i_instruction_fetch.v
+  rv32i_instruction_decode.v
+  rv32i_register_file.v
+  rv32i_control_unit.v
+  rv32i_execute_memory.v
+
+tb/
+  tb_rv32i_single_cycle_cpu.sv
+
+sim/
+  run_all.sh
+  run_rv32i_single_cycle_cpu.sh
+  lint.sh
+  output/
+
+
+3. Top-level CPU
+----------------
+
+File:
+  rtl/rv32i_single_cycle_cpu.v
+
+Module:
+  rv32i_single_cycle_cpu
+
+This is the main CPU wrapper. It connects all submodules together.
+
+Main jobs:
+
+- receives clock and reset
+- accepts instruction loading inputs for simulation
+- controls when the program counter advances
+- wires opcode/funct fields into control and execute logic
+- connects decode, writeback, memory, and branch redirection
+- exposes debug/monitor outputs such as:
+  - pc
+  - instruction
+  - rs1_data
+  - rs2_data
+  - imm_out
+  - alu_result
+  - mem_rdata
+  - write_data
+  - branch_taken
+  - branch_target
+
+
+4. Instruction fetch
+--------------------
+
+File:
+  rtl/rv32i_instruction_fetch.v
+
+Module:
+  rv32i_instruction_fetch
+
+This module contains:
+
+- the program counter
+- the simulation-friendly instruction memory
+
+Important behavior:
+
+- reset sets PC to zero
+- load_instr writes instructions into instruction memory
+- when execution is enabled, PC advances by 4
+- if a branch or jump is taken, PC loads branch_target instead
+- instruction read is combinational from instruction_mem[pc[11:2]]
+
+
+5. Instruction decode
+---------------------
+
+File:
+  rtl/rv32i_instruction_decode.v
+
+Module:
+  rv32i_instruction_decode
+
+This module handles:
+
+- rs1, rs2, rd field extraction
+- opcode extraction
+- RV32I immediate generation
+- connection to the register file module
+
+Immediate formats generated:
+
+- I-type
+- S-type
+- B-type
+- U-type
+- J-type
+
+The decoder chooses the correct immediate format from the opcode.
+
+
+6. Register file
+----------------
+
+File:
+  rtl/rv32i_register_file.v
+
+Module:
+  rv32i_register_file
+
+This is the explicit register file module.
+
+It contains:
+
+- 32 registers
+- each register is 32 bits wide
+- x0 hardwired to zero by read/write behavior
+- two combinational read ports
+- one synchronous write port
+- a simulation helper path for register initialization
+
+The internal register array is:
+
+  registers[0:31]
+
+In the testbench, register checks use:
+
+  uut.decode_stage.register_file.registers[index]
+
+
+7. Control unit
+---------------
+
+File:
+  rtl/rv32i_control_unit.v
+
+Module:
+  rv32i_control_unit
+
+The control unit decodes opcode classes and creates datapath controls:
+
+- branch
+- jump
+- mem_read
+- mem_to_reg
+- alu_op
+- mem_write
+- alu_src
+- reg_write
+
+It distinguishes:
+
+- R-type ALU operations
+- I-type ALU operations
+- loads
+- stores
+- branches
+- LUI
+- AUIPC
+- JAL
+- JALR
+
+
+8. Execute and memory logic
+---------------------------
+
+File:
+  rtl/rv32i_execute_memory.v
+
+Module:
+  rv32i_execute_memory
+
+This module combines:
+
+- ALU execution
+- branch comparison
+- jump target generation
+- simulation-friendly data memory
+- load formatting
+- store formatting
+- writeback result selection
+
+ALU behavior includes:
+
+- ADD
+- SUB
+- AND
+- OR
+- XOR
+- SLT
+- SLTU
+- SLL
+- SRL
+- SRA
+- ADDI family behavior
+- LUI pass-through
+- AUIPC PC-relative add
+
+Branch behavior includes:
+
+- BEQ
+- BNE
+- BLT
+- BGE
+- BLTU
+- BGEU
+
+Jump behavior includes:
+
+- JAL
+- JALR
+
+Memory behavior includes:
+
+- SB
+- SH
+- SW
+- LB
+- LH
+- LW
+- LBU
+- LHU
+
+The data memory array is:
+
+  data_mem[0:1023]
+
+
+9. Supported RV32I instruction groups
+--------------------------------------
+
+R-type ALU:
+
+- ADD
+- SUB
+- SLL
+- SLT
+- SLTU
+- XOR
+- SRL
+- SRA
+- OR
+- AND
+
+I-type ALU:
+
+- ADDI
+- SLLI
+- SLTI
+- SLTIU
+- XORI
+- SRLI
+- SRAI
+- ORI
+- ANDI
+
+Upper immediate:
+
+- LUI
+- AUIPC
+
+Branches:
+
+- BEQ
+- BNE
+- BLT
+- BGE
+- BLTU
+- BGEU
+
+Jumps:
+
+- JAL
+- JALR
+
+Loads:
+
+- LB
+- LH
+- LW
+- LBU
+- LHU
+
+Stores:
+
+- SB
+- SH
+- SW
+
+
+10. Testbench
+-------------
+
+File:
+  tb/tb_rv32i_single_cycle_cpu.sv
+
+Module:
+  tb_rv32i_single_cycle_cpu
+
+The testbench is self-checking.
+
+It contains:
+
+- a generated clock
+- instruction encoding helper functions
+- instruction memory loading tasks
+- reset tasks
+- register checks
+- memory checks
+
+The bench currently runs three test groups.
+
+Test 1:
+
+- sum loop using ADDI, ADD, and BNE
+- verifies:
+  - x1 = 55
+  - x2 = 0
+
+Test 2:
+
+- broader datapath and control checks
+- covers:
+  - LUI
+  - AUIPC
+  - ADDI
+  - SLLI
+  - OR
+  - ANDI
+  - XORI
+  - SLT
+  - SLTU
+  - SW
+  - LW
+  - BEQ
+  - JAL
+
+Test 3:
+
+- byte and halfword memory behavior
+- covers:
+  - LB sign extension
+  - LH sign extension
+  - SB partial word update
+  - SH partial word update
+
+
+11. Simulation scripts
+----------------------
+
+File:
+  sim/run_all.sh
+
+Purpose:
+
+- compiles the project regression
+- runs the single-cycle CPU testbench
+
+File:
+  sim/run_rv32i_single_cycle_cpu.sh
+
+Purpose:
+
+- runs the same dedicated single-cycle bench directly
+
+File:
+  sim/lint.sh
+
+Purpose:
+
+- performs an iverilog compile-only check
+- performs Verilator lint for rv32i_single_cycle_cpu
+
+
+12. How to run
+--------------
+
+Run the main regression:
+
+  ./sim/run_all.sh
+
+Run the dedicated bench directly:
+
+  ./sim/run_rv32i_single_cycle_cpu.sh
+
+Run compile and lint checks:
+
+  ./sim/lint.sh
+
+
+13. Generated outputs
+---------------------
+
+Simulation outputs are written under:
+
+  sim/output/
+
+Expected generated files include:
+
+- tb_rv32i_single_cycle_cpu.out
+- rv32i_single_cycle_cpu_wave.vcd
+
+
+14. Current verified result
+---------------------------
+
+Verified on 2026-05-12:
+
+- ./sim/run_all.sh : PASS
+- ./sim/run_rv32i_single_cycle_cpu.sh : PASS
+- ./sim/lint.sh : PASS
+- tb_rv32i_single_cycle_cpu.sv : 20 passed checks, 0 failed
+
+
+15. Current limitations
+-----------------------
+
+This project does not implement:
+
+- pipeline execution
+- CSR instructions
+- interrupts
+- trap or exception handling
+- misaligned access traps
+- RV32M / floating-point / compressed extensions
+- formal verification
+- full RISC-V compliance testing
