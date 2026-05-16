@@ -12,7 +12,7 @@ project. It is intended as the companion CPU repository for the AI/firmware
 repository:
 
 ```text
-https://github.com/riscv-edge-ai/catdog-riscv-edge-ai
+https://github.com/Meshal-ali-alanazi/catdog-riscv-edge-ai
 ```
 
 The AI repository contains the model training, quantized firmware, Renode
