@@ -19,6 +19,17 @@ The AI repository contains the model training, quantized firmware, Renode
 platform, benchmark scripts, and results. This repository contains the Verilog
 CPU core used as the hardware-learning side of the project.
 
+## My Contribution
+
+This repository is part of a collaborative computer engineering project.
+
+My main contributions include:
+
+- RV32I single-cycle CPU design and documentation
+- Verilog/SystemVerilog testbench review and project cleanup
+- ALU, branch, jump, load, and store instruction verification
+- Simulation scripts and portfolio-focused technical presentation
+
 ## What Is Included
 
 - `rtl/rv32i_single_cycle_cpu.v` top-level CPU wrapper
